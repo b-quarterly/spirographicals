@@ -11,23 +11,28 @@ target_include_directories(spiro-core
         $<INSTALL_INTERFACE:include>
 )
 
-# Fetch glfw and glad as before
+# Fetch glad and glfw
 FetchContent_MakeAvailable(glfw glad)
 
-# Fetch glm manually and define as header-only
-FetchContent_Populate(glm
+# === Replace glm with a LOCAL fake target ===
+
+include(FetchContent)
+FetchContent_Declare(
+    glm_src
     GIT_REPOSITORY https://github.com/g-truc/glm.git
     GIT_TAG        1.0.1
 )
 
-# Declare a header-only interface target for glm
-add_library(glm INTERFACE)
-target_include_directories(glm INTERFACE ${glm_SOURCE_DIR})
+FetchContent_Populate(glm_src)
 
-# Link dependencies
+# Create a header-only INTERFACE target
+add_library(glm-header-only INTERFACE)
+target_include_directories(glm-header-only INTERFACE ${glm_src_SOURCE_DIR})
+
+# Use ONLY this glm target
 target_link_libraries(spiro-core
     PRIVATE
         glfw
         glad
-        glm
+        glm-header-only
 )
