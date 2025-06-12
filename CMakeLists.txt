@@ -28,8 +28,8 @@ FetchContent_Declare(
 
 FetchContent_Declare(
     glm
-    URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip
-    **URL_HASH SHA256=09c5716296787e1f7fcb87b1cbdbf26814ec1288ed6259ccd30d5d9795809fa5**
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG        1.0.1
 )
 
 add_subdirectory(core)
@@ -56,6 +56,7 @@ install(FILE_SET spiro-core_HEADERS
 )
 
 include(CMakePackageConfigHelpers)
+
 configure_package_config_file(
     cmake/spirographicals-config.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/spirographicals-config.cmake"
