@@ -51,7 +51,9 @@ install(TARGETS spiro-core
     RUNTIME DESTINATION bin
 )
 
-install(FILE_SET spiro-core_HEADERS
+# Replace the problematic install(FILE_SET...) with install(DIRECTORY...)
+install(
+    DIRECTORY core/include/spirographicals
     DESTINATION include
 )
 
