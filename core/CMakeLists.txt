@@ -251,4 +251,159 @@ sp_canvas_t* sp_create_canvas(const sp_window_config_t* config) {
     try { return reinterpret_cast<sp_canvas_t*>(new Canvas(*config)); }
     catch (const std::exception& e) { std::cerr << e.what() << std::endl; return nullptr; }
 }
-void sp_destroy_canvas(sp_canvas_t
+void sp_destroy_canvas(sp_canvas_t* c) { delete as_canvas(c); }
+bool sp_canvas_should_close(sp_canvas_t* c) { return c ? glfwWindowShouldClose(as_canvas(c)->m_window) : true; }
+void sp_begin_frame(sp_canvas_t* c) { 
+    glfwPollEvents(); 
+    int w, h;
+    glfwGetFramebufferSize(as_canvas(c)->m_window, &w, &h);
+    glViewport(0, 0, w, h);
+    as_canvas(c)->m_renderer->beginFrame(w, h);
+}
+void sp_end_frame(sp_canvas_t* c) {
+    as_canvas(c)->m_renderer->flush();
+    glfwSwapBuffers(as_canvas(c)->m_window);
+}
+void sp_clear(sp_canvas_t* c, sp_color_rgba_t color) { glClearColor(color.r, color.g, color.b, color.a); glClear(GL_COLOR_BUFFER_BIT); }
+sp_vec2_t sp_get_canvas_size(sp_canvas_t* c) { int w, h; glfwGetWindowSize(as_canvas(c)->m_window, &w, &h); return {(float)w, (float)h}; }
+
+void sp_save_state(sp_canvas_t* c) { as_canvas(c)->m_renderer->stateStack.push(as_canvas(c)->m_renderer->stateStack.top()); }
+void sp_restore_state(sp_canvas_t* c) { if (as_canvas(c)->m_renderer->stateStack.size() > 1) as_canvas(c)->m_renderer->stateStack.pop(); }
+void sp_reset_transform(sp_canvas_t* c) { as_canvas(c)->m_renderer->stateStack.top().transform = glm::mat4(1.0f); }
+void sp_translate(sp_canvas_t* c, float x, float y) { auto& stack = as_canvas(c)->m_renderer->stateStack; stack.top().transform = glm::translate(stack.top().transform, glm::vec3(x,y,0)); }
+void sp_rotate(sp_canvas_t* c, float angle_radians) { auto& stack = as_canvas(c)->m_renderer->stateStack; stack.top().transform = glm::rotate(stack.top().transform, angle_radians, glm::vec3(0,0,1)); }
+void sp_scale(sp_canvas_t* c, float x, float y) { auto& stack = as_canvas(c)->m_renderer->stateStack; stack.top().transform = glm::scale(stack.top().transform, glm::vec3(x,y,1)); }
+
+sp_pen_t* sp_create_pen(sp_canvas_t* c, const sp_pen_config_t* config) { return reinterpret_cast<sp_pen_t*>(new Pen{*config}); }
+void sp_destroy_pen(sp_pen_t* p) { delete as_pen(p); }
+void sp_set_pen(sp_canvas_t* c, sp_pen_t* p) { as_canvas(c)->m_renderer->stateStack.top().pen = p; }
+void sp_set_color(sp_canvas_t* c, sp_color_rgba_t color) { as_canvas(c)->m_renderer->stateStack.top().color = color; }
+
+sp_path_t* sp_create_path(sp_canvas_t* c) { return reinterpret_cast<sp_path_t*>(new Path()); }
+void sp_destroy_path(sp_path_t* p) { delete as_path(p); }
+void sp_path_move_to(sp_path_t* p, float x, float y) { as_path(p)->points.clear(); as_path(p)->points.push_back({x,y}); }
+void sp_path_line_to(sp_path_t* p, float x, float y) { as_path(p)->points.push_back({x,y}); }
+void sp_path_arc_to(sp_path_t* p, float x1, float y1, float x2, float y2, float r) {}
+void sp_path_cubic_bezier_to(sp_path_t* p, float c1x, float c1y, float c2x, float c2y, float x, float y) {}
+void sp_path_close(sp_path_t* p) { if (as_path(p)->points.size() > 1) as_path(p)->points.push_back(as_path(p)->points.front()); }
+void sp_stroke_path(sp_canvas_t* c, sp_path_t* p) {
+    auto path = as_path(p);
+    auto pen = as_pen(as_canvas(c)->m_renderer->stateStack.top().pen);
+    if (path->points.size() < 2 || !pen) return;
+    auto& color_s = as_canvas(c)->m_renderer->stateStack.top().color;
+    glm::vec4 color = {color_s.r, color_s.g, color_s.b, color_s.a};
+    for (size_t i = 0; i < path->points.size() - 1; ++i) {
+        glm::vec4 p1 = {path->points[i].x, path->points[i].y, 0, 1};
+        glm::vec4 p2 = {path->points[i+1].x, path->points[i+1].y, 0, 1};
+        glm::vec2 dir = p2 - p1;
+        if (glm::length(dir) > 0.0f) dir = glm::normalize(dir);
+        glm::vec2 n(-dir.y, dir.x);
+        n *= pen->config.line_width / 2.0f;
+        as_canvas(c)->m_renderer->addQuad(p1 - glm::vec4(n, 0, 0), p2 - glm::vec4(n, 0, 0), p2 + glm::vec4(n, 0, 0), p1 + glm::vec4(n, 0, 0), color, -1.0f, {});
+    }
+}
+void sp_fill_path(sp_path_t* p, sp_path_t* path) {}
+
+void sp_draw_line(sp_canvas_t* c, float x1, float y1, float x2, float y2) { 
+    auto color_s = as_canvas(c)->m_renderer->stateStack.top().color;
+    glm::vec4 color = {color_s.r, color_s.g, color_s.b, color_s.a};
+    glm::vec4 p1 = {x1, y1, 0, 1}, p2 = {x2, y2, 0, 1};
+    glm::vec2 dir = p2 - p1;
+    if (glm::length(dir) > 0.0f) dir = glm::normalize(dir);
+    glm::vec2 n(-dir.y, dir.x);
+    as_canvas(c)->m_renderer->addQuad(p1-glm::vec4(n,0,0), p2-glm::vec4(n,0,0), p2+glm::vec4(n,0,0), p1+glm::vec4(n,0,0), color, -1.0f, {});
+}
+void sp_fill_rect(sp_canvas_t* c, float x, float y, float w, float h) {
+    auto color_s = as_canvas(c)->m_renderer->stateStack.top().color;
+    glm::vec4 color = {color_s.r, color_s.g, color_s.b, color_s.a};
+    as_canvas(c)->m_renderer->addQuad({x,y,0,1},{x+w,y,0,1},{x+w,y+h,0,1},{x,y+h,0,1}, color, -1.0f, {0,0,1,1});
+}
+void sp_draw_rect(sp_canvas_t* c, float x, float y, float w, float h) {}
+void sp_draw_circle(sp_canvas_t* c, float cx, float cy, float r) {}
+void sp_fill_circle(sp_canvas_t* c, float cx, float cy, float r) {}
+void sp_draw_ellipse(sp_canvas_t* c, float cx, float cy, float rx, float ry) {}
+
+sp_font_t* sp_load_font(sp_canvas_t* c, const char* path) {
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file) return nullptr;
+    auto font = new Font();
+    font->ttf_buffer.resize(file.tellg());
+    file.seekg(0, std::ios::beg);
+    if (!file.read((char*)font->ttf_buffer.data(), font->ttf_buffer.size())) {
+        delete font;
+        return nullptr;
+    }
+    
+    unsigned char temp_bitmap[512 * 512];
+    stbtt_BakeFontBitmap(font->ttf_buffer.data(), 0, 32.0, temp_bitmap, 512, 512, 32, 96, font->cdata);
+
+    glGenTextures(1, &font->font_texture);
+    glBindTexture(GL_TEXTURE_2D, font->font_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, 512, 512, 0, GL_RED, GL_UNSIGNED_BYTE, temp_bitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    return reinterpret_cast<sp_font_t*>(font);
+}
+void sp_destroy_font(sp_font_t* f) { if(f) { glDeleteTextures(1, &as_font(f)->font_texture); delete as_font(f); } }
+void sp_set_font(sp_canvas_t* c, sp_font_t* f, float size) { auto& state = as_canvas(c)->m_renderer->stateStack.top(); state.font = f; state.font_size = size; }
+void sp_draw_text(sp_canvas_t* c, const char* text, float x, float y) {
+    auto& state = as_canvas(c)->m_renderer->stateStack.top();
+    auto font = as_font(state.font);
+    if (!font) return;
+
+    auto color_s = state.color;
+    glm::vec4 color = {color_s.r, color_s.g, color_s.b, color_s.a};
+    float tid = as_canvas(c)->m_renderer->getTextureSlot(font->font_texture);
+
+    const char* ptr = text;
+    while (*ptr) {
+        if (*ptr >= 32 && *ptr < 128) {
+            stbtt_aligned_quad q;
+            stbtt_GetBakedQuad(font->cdata, 512, 512, *ptr - 32, &x, &y, &q, 1);
+            as_canvas(c)->m_renderer->addQuad(
+                {q.x0, q.y0, 0, 1}, {q.x1, q.y0, 0, 1},
+                {q.x1, q.y1, 0, 1}, {q.x0, q.y1, 0, 1},
+                color, tid, {q.s0, q.t0, q.s1, q.t1}
+            );
+        }
+        ptr++;
+    }
+}
+sp_rect_t sp_measure_text(sp_canvas_t* c, const char* text) { return {0,0,0,0}; }
+
+sp_image_t* sp_load_image(sp_canvas_t* c, const char* path) {
+    auto image = new Image();
+    int channels;
+    unsigned char* data = stbi_load(path, &image->width, &image->height, &channels, 4);
+    if (!data) { delete image; return nullptr; }
+    glGenTextures(1, &image->textureId);
+    glBindTexture(GL_TEXTURE_2D, image->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    stbi_image_free(data);
+    return reinterpret_cast<sp_image_t*>(image);
+}
+void sp_destroy_image(sp_image_t* i) { if(i) { glDeleteTextures(1, &as_image(i)->textureId); delete as_image(i); } }
+void sp_draw_image(sp_canvas_t* c, sp_image_t* i, float x, float y) {
+    auto image = as_image(i); if (!image) return;
+    float tid = as_canvas(c)->m_renderer->getTextureSlot(image->textureId);
+    glm::vec4 color = {1,1,1,1};
+    as_canvas(c)->m_renderer->addQuad({x, y, 0, 1}, {x + image->width, y, 0, 1}, {x + image->width, y + image->height, 0, 1}, {x, y + image->height, 0, 1}, color, tid, {0,0,1,1});
+}
+void sp_draw_image_rect(sp_canvas_t* c, sp_image_t* i, sp_rect_t src, sp_rect_t dest) {
+    auto image = as_image(i); if (!image) return;
+    float tid = as_canvas(c)->m_renderer->getTextureSlot(image->textureId);
+    glm::vec4 color = {1,1,1,1};
+    glm::vec4 texCoords = {src.x/image->width, src.y/image->height, (src.x+src.w)/image->width, (src.y+src.h)/image->height};
+    as_canvas(c)->m_renderer->addQuad({dest.x, dest.y,0,1}, {dest.x + dest.w, dest.y,0,1}, {dest.x + dest.w, dest.y + dest.h,0,1}, {dest.x, dest.y + dest.h,0,1}, color, tid, texCoords);
+}
+
+static void internal_key_cb(GLFWwindow* w, int k, int s, int a, int m) { auto* c = static_cast<Canvas*>(glfwGetWindowUserPointer(w)); if(c && c->key_callback) c->key_callback(reinterpret_cast<sp_canvas_t*>(c),k,s,a,m); }
+static void internal_mouse_btn_cb(GLFWwindow* w, int b, int a, int m) { auto* c = static_cast<Canvas*>(glfwGetWindowUserPointer(w)); if(c && c->mouse_button_callback) c->mouse_button_callback(reinterpret_cast<sp_canvas_t*>(c),b,a,m); }
+static void internal_cursor_pos_cb(GLFWwindow* w, double x, double y) { auto* c = static_cast<Canvas*>(glfwGetWindowUserPointer(w)); if(c && c->cursor_pos_callback) c->cursor_pos_callback(reinterpret_cast<sp_canvas_t*>(c),x,y); }
+
+void sp_set_key_callback(sp_canvas_t* c, sp_key_callback_t cb) { as_canvas(c)->key_callback = cb; glfwSetKeyCallback(as_canvas(c)->m_window, cb ? internal_key_cb : nullptr); }
+void sp_set_mouse_button_callback(sp_canvas_t* c, sp_mouse_button_callback_t cb) { as_canvas(c)->mouse_button_callback = cb; glfwSetMouseButtonCallback(as_canvas(c)->m_window, cb ? internal_mouse_btn_cb : nullptr); }
+void sp_set_cursor_pos_callback(sp_canvas_t* c, sp_cursor_pos_callback_t cb) { as_canvas(c)->cursor_pos_callback = cb; glfwSetCursorPosCallback(as_canvas(c)->m_window, cb ? internal_cursor_pos_cb : nullptr); }
