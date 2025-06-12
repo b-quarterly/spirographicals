@@ -1,0 +1,94 @@
+# .clang-format
+# =============================================================================
+# Code style configuration for clang-format for the Spirographicals C++ core.
+# This configuration is based on the Google C++ Style Guide with specific
+# customizations for project consistency and improved readability.
+# =============================================================================
+
+# The language to format.
+Language: Cpp
+
+# Start with the Google style guide as a baseline.
+# All options below are overrides or clarifications to that base style.
+BasedOnStyle: Google
+
+# --- Column Limit and Line Wrapping ------------------------------------------
+
+# Set the column limit to 100 to match the style of our Rust and Python code.
+# The Google default is 80, which is often too restrictive for modern screens.
+ColumnLimit: 100
+
+# --- Indentation -------------------------------------------------------------
+
+# Use 4 spaces for indentation, which is a common and highly readable standard.
+# The Google default is 2 spaces.
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# Outdent access modifiers (public:, private:, protected:) for clear visibility.
+AccessModifierOffset: -2
+
+# --- Pointer Alignment -------------------------------------------------------
+
+# Align pointers to the type (e.g., `int* p`). This is the Google default.
+# Other options: Right (`int *p`), Middle (`int * p`).
+PointerAlignment: Left
+
+# --- Include Block Formatting ------------------------------------------------
+
+# Enforce a strict and logical ordering for #include directives. This is one of
+# the most powerful features for keeping code clean.
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  # 1. The matching header for the current implementation file.
+  - Regex:           '^".*"'
+    Priority:        1
+  # 2. Headers from our own project (<aperture/...> or <spiro/...>)
+  - Regex:           '<(aperture|spirographicals)/.*>'
+    Priority:        2
+  # 3. Third-party library headers (e.g., glad, glfw, glm)
+  - Regex:           '<(glad|GLFW|glm)/.*>'
+    Priority:        3
+  # 4. C++ standard library headers
+  - Regex:           '<[a-z].*>'
+    Priority:        4
+
+# --- Braces and Spacing ------------------------------------------------------
+
+# Attach braces to the preceding declaration or statement.
+# e.g., `void myFunction() {`
+BreakBeforeBraces: Attach
+
+# Always break before the opening brace of a function definition.
+# Ensures functions are always formatted clearly.
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+
+# Do not allow short `if` statements on a single line.
+# Enforces the use of braces for clarity and to prevent bugs.
+AllowShortIfStatementsOnASingleLine: false
+
+# Do not allow short functions on a single line.
+AllowShortFunctionsOnASingleLine: None
+
+# Do not put spaces after the opening parenthesis or before the closing one.
+# e.g., `myFunction(arg1, arg2)` instead of `myFunction( arg1, arg2 )`.
+SpacesInParentheses: false
+
+# --- Other Style Rules -------------------------------------------------------
+
+# Always break before a ternary operator's '?' if the line is too long.
+BreakBeforeTernaryOperators: true
+
+# Allow placing the constructor initializer list either on the same line or
+# on a new line, whichever fits best.
+Cpp11BracedListStyle: true
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+
+# Automatically inserts the required space after a C++11 `final` and `override` keyword.
+SpaceAfterCStyleCast: true
+SpaceAfterLogicalNot: false
+SpaceBeforeAssignmentOperators: true
