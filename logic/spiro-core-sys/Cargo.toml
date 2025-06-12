@@ -1,0 +1,15 @@
+# logic/spiro-core-sys/Cargo.toml
+
+[package]
+name = "spiro-core-sys"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aitzaz Imtiaz"]
+description = "Unsafe FFI bindings to the spirographicals C++ core library."
+license-file = "../../LICENSE.md"
+build = "build.rs"
+
+[dependencies]
+
+[build-dependencies]
+bindgen = "0.69"
