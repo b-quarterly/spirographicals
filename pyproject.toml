@@ -1,0 +1,103 @@
+# spirographicals/pyproject.toml
+
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin.api"
+
+[project]
+name = "spirographicals"
+version = "0.1.0"
+description = "A high-performance spirograph-style graphing library powered by C++ and Rust."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+keywords = ["spirograph", "plotting", "visualization", "rust", "c++"]
+authors = [
+  { name = "Aitzaz Imtiaz", email = "aitzazimtiaz.ai@gmail.com" },
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Topic :: Scientific/Engineering :: Visualization",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Rust",
+  "Programming Language :: C++",
+]
+
+[project.urls]
+Homepage = "https://github.com/AitzazImtiaz/spirographicals"
+Repository = "https://github.com/AitzazImtiaz/spirographicals"
+"Bug Tracker" = "https://github.com/AitzazImtiaz/spirographicals/issues"
+
+# Development, testing, and optional dependencies
+[project.optional-dependencies]
+notebook = ["jupyterlab", "ipywidgets"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov", # For checking test coverage
+    "ruff",       # Combined linter and formatter
+    "mypy",       # Static type checker
+    "pre-commit", # For running checks before commits
+]
+
+# --- Tool Configurations ---------------------------------------------------
+
+[tool.maturin]
+# Main Rust crate containing the pyo3 bindings.
+manifest-path = "logic/aperture-logic/Cargo.toml"
+# Location of the Python source code.
+python-source = "api/src"
+bindings = "pyo3"
+# Example of enabling a cargo feature from the Python build
+# features = ["py-ndarray"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python_tests"]
+addopts = "-v --cov=spirographicals --cov-report=term-missing"
+python_files = "test_*.py"
+
+[tool.ruff]
+line-length = 99
+target-version = "py38"
+
+[tool.ruff.lint]
+# A good starting set of rules.
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = ["B008"] # Don't complain about function calls in default arguments
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true # Ignore missing stubs for C/Rust modules initially
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+# --- CI/CD Build Configuration -------------------------------------------
+
+[tool.cibuildwheel]
+# Skip builds for unsupported architectures.
+skip = "*-musllinux*"
+
+[tool.cibuildwheel.windows]
+# Set environment variables to help the linker find the C++ library on Windows.
+environment = { CMAKE_ARGS = "-DCMAKE_BUILD_TYPE=Release", RUSTFLAGS="-L {project}/target/cpp/lib" }
+
+[tool.cibuildwheel.macos]
+# Set environment variables for macOS, including linker search paths.
+environment = { CMAKE_ARGS = "-DCMAKE_BUILD_TYPE=Release", RUSTFLAGS="-L {project}/target/cpp/lib" }
+
+[tool.cibuildwheel.linux]
+# For manylinux, use an environment file to set the linker path.
+environment-file = ".env.linux"
