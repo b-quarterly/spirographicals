@@ -21,7 +21,6 @@ FetchContent_Declare(
     URL https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.zip
 )
 
-# Using the corrected repository link provided.
 FetchContent_Declare(
     glad
     URL https://github.com/Dav1dde/glad/archive/refs/tags/v2.0.4.zip
@@ -30,7 +29,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     glm
     URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip
-    URL_HASH SHA256=d3446543b0915f4294326845b14383b1689702294142616199852233f21b7218
+    **URL_HASH SHA256=09c5716296787e1f7fcb87b1cbdbf26814ec1288ed6259ccd30d5d9795809fa5**
 )
 
 add_subdirectory(core)
