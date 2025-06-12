@@ -1,0 +1,13 @@
+# logic/Cargo.toml
+
+[workspace]
+resolver = "2"
+members = [
+    "spiro-core-sys",
+    "spiro-logic",
+]
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
