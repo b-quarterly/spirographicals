@@ -1,0 +1,17 @@
+# logic/spiro-logic/Cargo.toml
+
+[package]
+name = "spiro-logic"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aitzaz Imtiaz"]
+description = "Safe Rust logic and Python bindings for the Spirographicals library."
+license-file = "../../LICENSE.md"
+
+[lib]
+name = "spirographicals"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21.2", features = ["extension-module"] }
+spiro-core-sys = { path = "../spiro-core-sys", version = "0.1.0" }
