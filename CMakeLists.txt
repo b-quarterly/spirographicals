@@ -38,14 +38,13 @@ if(SPIRO_BUILD_TESTS)
     add_subdirectory(core/tests)
 endif()
 
-install(TARGETS spiro-core glm-header-only
+install(TARGETS spiro-core
     EXPORT spirographicals-targets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
 
-# Replace the problematic install(FILE_SET...) with install(DIRECTORY...)
 install(
     DIRECTORY core/include/spirographicals
     DESTINATION include
