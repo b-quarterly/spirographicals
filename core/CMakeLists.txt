@@ -11,12 +11,10 @@ target_include_directories(spiro-core
         $<INSTALL_INTERFACE:include>
 )
 
-# The FILE_SET block has been removed from here.
-
 FetchContent_MakeAvailable(glfw glad glm)
 
 target_link_libraries(spiro-core
-    PUBLIC
+    PRIVATE
         glfw
         glad
         glm
