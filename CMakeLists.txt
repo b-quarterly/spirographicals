@@ -21,11 +21,6 @@ FetchContent_Declare(
     URL https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.zip
 )
 
-FetchContent_Declare(
-    glad
-    URL https://github.com/Dav1dde/glad/archive/refs/tags/v2.0.4.zip
-)
-
 add_subdirectory(core)
 
 if(SPIRO_BUILD_TESTS)
