@@ -3,6 +3,7 @@ add_library(spiro-core)
 target_sources(spiro-core
     PRIVATE
         src/api.cpp
+        ${CMAKE_SOURCE_DIR}/third_party/glad/glad.c
 )
 
 target_include_directories(spiro-core
@@ -25,15 +26,15 @@ if(NOT glm_POPULATED)
 endif()
 
 target_include_directories(spiro-core
-    PRIVATE 
+    PRIVATE
         ${glm_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/third_party/stb
+        ${CMAKE_SOURCE_DIR}/third_party/glad/include
 )
 
-FetchContent_MakeAvailable(glfw glad)
+FetchContent_MakeAvailable(glfw)
 
 target_link_libraries(spiro-core
     PRIVATE
         glfw
-        glad
 )
