@@ -25,50 +25,6 @@
 
 namespace spiro::internal {
 
-// --- Shader Sources ---
-const char* BATCH_VERTEX_SHADER = R"glsl(
-    #version 330 core
-    layout (location = 0) in vec2 a_Pos;
-    layout (location = 1) in vec4 a_Color;
-    layout (location = 2) in vec2 a_TexCoord;
-    layout (location = 3) in float a_TexId;
-
-    out vec4 v_Color;
-    out vec2 v_TexCoord;
-    out float v_TexId;
-
-    uniform mat4 u_ViewProjection;
-
-    void main() {
-        v_Color = a_Color;
-        v_TexCoord = a_TexCoord;
-        v_TexId = a_TexId;
-        gl_Position = u_ViewProjection * vec4(a_Pos.x, a_Pos.y, 0.0, 1.0);
-    }
-)glsl";
-
-const char* BATCH_FRAGMENT_SHADER = R"glsl(
-    #version 330 core
-    out vec4 FragColor;
-
-    in vec4 v_Color;
-    in vec2 v_TexCoord;
-    in float v_TexId;
-
-    uniform sampler2D u_Textures[16];
-
-    void main() {
-        if (v_TexId > -0.5) {
-            int tid = int(round(v_TexId));
-            vec4 texColor = texture(u_Textures[tid], v_TexCoord);
-            FragColor = v_Color * texColor;
-        } else {
-            FragColor = v_Color;
-        }
-    }
-)glsl";
-
-// --- Data Structures ---
 struct Vertex {
     glm::vec2 position;
     glm::vec4 color;
@@ -93,7 +49,8 @@ struct Image {
 struct Font {
     std::vector<unsigned char> ttf_buffer;
     stbtt_fontinfo info;
-    stbtt_bakedchar cdata[96]; // ASCII 32..126
+    GLuint font_texture = 0;
+    stbtt_bakedchar cdata[96];
 };
 
 struct State {
@@ -121,12 +78,44 @@ public:
         m_vertices.reserve(MAX_VERTICES);
         m_textureSlots.reserve(MAX_TEXTURES);
 
+        const char* vs_src = R"glsl(#version 330 core
+            layout (location = 0) in vec2 a_Pos;
+            layout (location = 1) in vec4 a_Color;
+            layout (location = 2) in vec2 a_TexCoord;
+            layout (location = 3) in float a_TexId;
+            out vec4 v_Color;
+            out vec2 v_TexCoord;
+            out float v_TexId;
+            uniform mat4 u_ViewProjection;
+            void main() {
+                v_Color = a_Color;
+                v_TexCoord = a_TexCoord;
+                v_TexId = a_TexId;
+                gl_Position = u_ViewProjection * vec4(a_Pos, 0.0, 1.0);
+            })glsl";
+
+        const char* fs_src = R"glsl(#version 330 core
+            out vec4 FragColor;
+            in vec4 v_Color;
+            in vec2 v_TexCoord;
+            in float v_TexId;
+            uniform sampler2D u_Textures[16];
+            void main() {
+                if (v_TexId > -0.5) {
+                    int tid = int(round(v_TexId));
+                    vec4 texColor = texture(u_Textures[tid], v_TexCoord);
+                    FragColor = v_Color * texColor;
+                } else {
+                    FragColor = v_Color;
+                }
+            })glsl";
+
         GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vs, 1, &BATCH_VERTEX_SHADER, nullptr);
+        glShaderSource(vs, 1, &vs_src, nullptr);
         glCompileShader(vs);
         
         GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fs, 1, &BATCH_FRAGMENT_SHADER, nullptr);
+        glShaderSource(fs, 1, &fs_src, nullptr);
         glCompileShader(fs);
 
         m_shaderProgram = glCreateProgram();
@@ -141,7 +130,7 @@ public:
         glGenBuffers(1, &m_vbo);
         glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
         glBufferData(GL_ARRAY_BUFFER, MAX_VERTICES * sizeof(Vertex), nullptr, GL_DYNAMIC_DRAW);
-
+        
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, position));
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, color));
@@ -154,9 +143,6 @@ public:
         State initialState;
         initialState.transform = glm::mat4(1.0f);
         initialState.color = {1.0f, 1.0f, 1.0f, 1.0f};
-        initialState.pen = nullptr;
-        initialState.font = nullptr;
-        initialState.font_size = 16.0f;
         stateStack.push(initialState);
     }
 
@@ -182,21 +168,17 @@ public:
 
     void flush() {
         if (m_vertices.empty()) return;
-
         for (uint32_t i = 0; i < m_textureSlots.size(); i++) {
             glActiveTexture(GL_TEXTURE0 + i);
             glBindTexture(GL_TEXTURE_2D, m_textureSlots[i]);
         }
-        
         glBindVertexArray(m_vao);
         glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
         glBufferSubData(GL_ARRAY_BUFFER, 0, m_vertices.size() * sizeof(Vertex), m_vertices.data());
-        
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDrawArrays(GL_TRIANGLES, 0, m_vertices.size());
         glDisable(GL_BLEND);
-        
         m_vertices.clear();
         m_textureSlots.clear();
     }
@@ -213,14 +195,14 @@ public:
         return (float)m_textureSlots.size() - 1.0f;
     }
 
-    void addQuad(const glm::vec2& p1, const glm::vec2& p2, const glm::vec2& p3, const glm::vec2& p4, const glm::vec4& color, float texId, const glm::vec4& texCoords) {
+    void addQuad(const glm::vec4& p1, const glm::vec4& p2, const glm::vec4& p3, const glm::vec4& p4, const glm::vec4& color, float texId, const glm::vec4& texCoords) {
         if (m_vertices.size() + 6 > MAX_VERTICES) flush();
-        m_vertices.push_back({p1, color, {texCoords.x, texCoords.y}, texId});
-        m_vertices.push_back({p2, color, {texCoords.z, texCoords.y}, texId});
-        m_vertices.push_back({p3, color, {texCoords.z, texCoords.w}, texId});
-        m_vertices.push_back({p1, color, {texCoords.x, texCoords.y}, texId});
-        m_vertices.push_back({p3, color, {texCoords.z, texCoords.w}, texId});
-        m_vertices.push_back({p4, color, {texCoords.x, texCoords.w}, texId});
+        m_vertices.push_back({ {p1.x, p1.y}, color, {texCoords.x, texCoords.y}, texId });
+        m_vertices.push_back({ {p2.x, p2.y}, color, {texCoords.z, texCoords.y}, texId });
+        m_vertices.push_back({ {p3.x, p3.y}, color, {texCoords.z, texCoords.w}, texId });
+        m_vertices.push_back({ {p1.x, p1.y}, color, {texCoords.x, texCoords.y}, texId });
+        m_vertices.push_back({ {p3.x, p3.y}, color, {texCoords.z, texCoords.w}, texId });
+        m_vertices.push_back({ {p4.x, p4.y}, color, {texCoords.x, texCoords.w}, texId });
     }
 };
 
@@ -234,11 +216,13 @@ public:
     sp_cursor_pos_callback_t cursor_pos_callback = nullptr;
     
     Canvas(const sp_window_config_t& config) {
+        if (!glfwInit()) throw std::runtime_error("glfwInit failed");
+        
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         m_window = glfwCreateWindow(config.width, config.height, config.title, nullptr, nullptr);
-        if (!m_window) throw std::runtime_error("glfwCreateWindow failed");
+        if (!m_window) { glfwTerminate(); throw std::runtime_error("glfwCreateWindow failed"); }
         
         glfwMakeContextCurrent(m_window);
         if (config.vsync) glfwSwapInterval(1);
@@ -307,76 +291,77 @@ void sp_stroke_path(sp_canvas_t* c, sp_path_t* p) {
     auto path = as_path(p);
     auto pen = as_pen(as_canvas(c)->m_renderer->stateStack.top().pen);
     if (path->points.size() < 2 || !pen) return;
+    auto& color_s = as_canvas(c)->m_renderer->stateStack.top().color;
+    glm::vec4 color = {color_s.r, color_s.g, color_s.b, color_s.a};
     for (size_t i = 0; i < path->points.size() - 1; ++i) {
-        glm::vec2 p1 = {path->points[i].x, path->points[i].y};
-        glm::vec2 p2 = {path->points[i+1].x, path->points[i+1].y};
-        glm::vec2 dir = glm::normalize(p2 - p1);
+        glm::vec4 p1 = {path->points[i].x, path->points[i].y, 0, 1};
+        glm::vec4 p2 = {path->points[i+1].x, path->points[i+1].y, 0, 1};
+        glm::vec2 dir = glm::normalize(glm::vec2(p2) - glm::vec2(p1));
         glm::vec2 n(-dir.y, dir.x);
         n *= pen->config.line_width / 2.0f;
-        
-        glm::vec4 color = {1,1,1,1};
-        auto& state_color = as_canvas(c)->m_renderer->stateStack.top().color;
-        color = {state_color.r, state_color.g, state_color.b, state_color.a};
-        
-        as_canvas(c)->m_renderer->addQuad(p1 - n, p2 - n, p2 + n, p1 + n, color, -1.0f, {0,0,0,0});
+        as_canvas(c)->m_renderer->addQuad(p1 - glm::vec4(n, 0, 0), p2 - glm::vec4(n, 0, 0), p2 + glm::vec4(n, 0, 0), p1 + glm::vec4(n, 0, 0), color, -1.0f, {});
     }
 }
 void sp_fill_path(sp_path_t* p, sp_path_t* path) {}
 
-void sp_draw_line(sp_canvas_t* c, float x1, float y1, float x2, float y2) { sp_stroke_path(c, nullptr); }
-void sp_draw_rect(sp_canvas_t* c, float x, float y, float w, float h) { auto color = as_canvas(c)->m_renderer->stateStack.top().color; as_canvas(c)->m_renderer->addQuad({x,y},{x+w,y},{x+w,y+h},{x,y+h}, {color.r,color.g,color.b,color.a}, -1.0f, {0,0,0,0}); }
-void sp_fill_rect(sp_canvas_t* c, float x, float y, float w, float h) { sp_draw_rect(c,x,y,w,h); }
+void sp_draw_line(sp_canvas_t* c, float x1, float y1, float x2, float y2) { 
+    auto color_s = as_canvas(c)->m_renderer->stateStack.top().color;
+    glm::vec4 color = {color_s.r, color_s.g, color_s.b, color_s.a};
+    glm::vec4 p1 = {x1, y1, 0, 1}, p2 = {x2, y2, 0, 1};
+    glm::vec2 dir = glm::normalize(glm::vec2(p2) - glm::vec2(p1));
+    glm::vec2 n(-dir.y, dir.x);
+    as_canvas(c)->m_renderer->addQuad(p1-glm::vec4(n,0,0), p2-glm::vec4(n,0,0), p2+glm::vec4(n,0,0), p1+glm::vec4(n,0,0), color, -1.0f, {});
+}
+void sp_fill_rect(sp_canvas_t* c, float x, float y, float w, float h) {
+    auto color_s = as_canvas(c)->m_renderer->stateStack.top().color;
+    glm::vec4 color = {color_s.r, color_s.g, color_s.b, color_s.a};
+    as_canvas(c)->m_renderer->addQuad({x,y,0,1},{x+w,y,0,1},{x+w,y+h,0,1},{x,y+h,0,1}, color, -1.0f, {0,0,1,1});
+}
+void sp_draw_rect(sp_canvas_t* c, float x, float y, float w, float h) {}
 void sp_draw_circle(sp_canvas_t* c, float cx, float cy, float r) {}
-void sp_draw_ellipse(sp_canvas_t* c, float cx, float cy, float rx, float ry) {}
 void sp_fill_circle(sp_canvas_t* c, float cx, float cy, float r) {}
+void sp_draw_ellipse(sp_canvas_t* c, float cx, float cy, float rx, float ry) {}
 
 sp_font_t* sp_load_font(sp_canvas_t* c, const char* path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) return nullptr;
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
     auto font = new Font();
-    font->ttf_buffer.resize(size);
-    if (file.read((char*)font->ttf_buffer.data(), size)) {
-        stbtt_InitFont(&font->info, font->ttf_buffer.data(), 0);
-        return reinterpret_cast<sp_font_t*>(font);
-    }
-    delete font;
-    return nullptr;
+    font->ttf_buffer.resize(file.tellg());
+    file.seekg(0, std::ios::beg);
+    file.read((char*)font->ttf_buffer.data(), font->ttf_buffer.size());
+    stbtt_InitFont(&font->info, font->ttf_buffer.data(), 0);
+    return reinterpret_cast<sp_font_t*>(font);
 }
 void sp_destroy_font(sp_font_t* f) { delete as_font(f); }
-void sp_set_font(sp_canvas_t* c, sp_font_t* f, float size) { auto& stack = as_canvas(c)->m_renderer->stateStack; stack.top().font = f; stack.top().font_size = size; }
+void sp_set_font(sp_canvas_t* c, sp_font_t* f, float size) { auto& state = as_canvas(c)->m_renderer->stateStack.top(); state.font = f; state.font_size = size; }
 void sp_draw_text(sp_canvas_t* c, const char* text, float x, float y) {
     auto& state = as_canvas(c)->m_renderer->stateStack.top();
     auto font = as_font(state.font);
     if (!font) return;
     
     float scale = stbtt_ScaleForPixelHeight(&font->info, state.font_size);
-    int ascent, descent, lineGap;
-    stbtt_GetFontVMetrics(&font->info, &ascent, &descent, &lineGap);
+    int ascent;
+    stbtt_GetFontVMetrics(&font->info, &ascent, 0, 0);
     y += ascent * scale;
 
     const char* ptr = text;
     while (*ptr) {
-        int codepoint;
-        ptr += stbtt_GetCodepointSloppy(ptr, &codepoint);
-        if (codepoint == '\n') {
-            y += (ascent - descent + lineGap) * scale;
-            x = 0; // simplistic newline
-            continue;
-        }
-        int g = stbtt_FindGlyphIndex(&font->info, codepoint);
-        if (g == 0) continue;
+        int advance = 0;
+        int codepoint = stbtt_GetCodepoint(ptr, &advance);
+        if (codepoint == 0 || advance == 0) break;
 
-        int x0, y0, x1, y1;
-        stbtt_GetGlyphBitmapBox(&font->info, g, scale, scale, &x0, &y0, &x1, &y1);
+        stbtt_aligned_quad q;
+        stbtt_GetBakedQuad(font->cdata, 512, 512, codepoint - 32, &x, &y, &q, 1);
         
-        // draw glyph here
-        int advance, lsb;
-        stbtt_GetGlyphHMetrics(&font->info, g, &advance, &lsb);
-        x += advance * scale;
-        int kern = stbtt_GetCodepointKernAdvance(&font->info, codepoint, stbtt_GetCodepointSloppy(ptr, &codepoint));
-        x += kern * scale;
+        int next_codepoint = 0;
+        int next_advance = 0;
+        if (*(ptr + advance)) {
+            next_codepoint = stbtt_GetCodepoint(ptr + advance, &next_advance);
+        }
+        if (next_codepoint != 0) {
+            x += stbtt_GetCodepointKernAdvance(&font->info, codepoint, next_codepoint) * scale;
+        }
+        ptr += advance;
     }
 }
 sp_rect_t sp_measure_text(sp_canvas_t* c, const char* text) { return {0,0,0,0}; }
@@ -396,17 +381,17 @@ sp_image_t* sp_load_image(sp_canvas_t* c, const char* path) {
 }
 void sp_destroy_image(sp_image_t* i) { if(i) { glDeleteTextures(1, &as_image(i)->textureId); delete as_image(i); } }
 void sp_draw_image(sp_canvas_t* c, sp_image_t* i, float x, float y) {
-    auto image = as_image(i);
-    if (!image) return;
+    auto image = as_image(i); if (!image) return;
     float tid = as_canvas(c)->m_renderer->getTextureSlot(image->textureId);
-    as_canvas(c)->m_renderer->addQuad({x, y}, {x + image->width, y}, {x + image->width, y + image->height}, {x, y + image->height}, {1,1,1,1}, tid, {0,0,1,1});
+    glm::vec4 color = {1,1,1,1};
+    as_canvas(c)->m_renderer->addQuad({x, y, 0, 1}, {x + image->width, y, 0, 1}, {x + image->width, y + image->height, 0, 1}, {x, y + image->height, 0, 1}, color, tid, {0,0,1,1});
 }
 void sp_draw_image_rect(sp_canvas_t* c, sp_image_t* i, sp_rect_t src, sp_rect_t dest) {
-    auto image = as_image(i);
-    if (!image) return;
+    auto image = as_image(i); if (!image) return;
     float tid = as_canvas(c)->m_renderer->getTextureSlot(image->textureId);
+    glm::vec4 color = {1,1,1,1};
     glm::vec4 texCoords = {src.x/image->width, src.y/image->height, (src.x+src.w)/image->width, (src.y+src.h)/image->height};
-    as_canvas(c)->m_renderer->addQuad({dest.x, dest.y}, {dest.x + dest.w, dest.y}, {dest.x + dest.w, dest.y + dest.h}, {dest.x, dest.y + dest.h}, {1,1,1,1}, tid, texCoords);
+    as_canvas(c)->m_renderer->addQuad({dest.x, dest.y,0,1}, {dest.x + dest.w, dest.y,0,1}, {dest.x + dest.w, dest.y + dest.h,0,1}, {dest.x, dest.y + dest.h,0,1}, color, tid, texCoords);
 }
 
 static void internal_key_cb(GLFWwindow* w, int k, int s, int a, int m) { auto* c = static_cast<Canvas*>(glfwGetWindowUserPointer(w)); if(c && c->key_callback) c->key_callback(reinterpret_cast<sp_canvas_t*>(c),k,s,a,m); }
