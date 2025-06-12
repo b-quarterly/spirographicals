@@ -26,12 +26,6 @@ FetchContent_Declare(
     URL https://github.com/Dav1dde/glad/archive/refs/tags/v2.0.4.zip
 )
 
-FetchContent_Declare(
-    glm
-    GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG        1.0.1
-)
-
 add_subdirectory(core)
 
 if(SPIRO_BUILD_TESTS)
