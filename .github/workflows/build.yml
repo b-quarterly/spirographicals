@@ -1,0 +1,67 @@
+# .github/workflows/build.yml
+
+name: Build and Test Spirographicals
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_and_test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Set up Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install C++ dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake libglfw3-dev libgtk-3-dev
+
+    - name: Install C++ dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: brew install cmake
+
+    - name: Install Python packages
+      run: |
+        python -m pip install --upgrade pip
+        pip install maturin numpy pytest
+
+    - name: Build the entire project
+      # The Makefile orchestrates the CMake, Cargo, and Maturin builds.
+      # For Windows, `make` is available via the Git for Windows bash shell.
+      shell: bash
+      run: make build
+
+    - name: Run the test suite
+      # This runs C++ (ctest), Rust (cargo test), and Python (pytest) tests.
+      shell: bash
+      run: make test
+
+    - name: Package the final wheel
+      if: runner.os != 'Windows' # Or handle packaging differently for windows
+      shell: bash
+      run: make package
+
+    - name: Upload Python wheel as artifact
+      if: runner.os != 'Windows'
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-wheel-${{ matrix.os }}
+        path: target/python/wheelhouse/*.whl
