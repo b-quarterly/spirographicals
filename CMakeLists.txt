@@ -38,7 +38,7 @@ if(SPIRO_BUILD_TESTS)
     add_subdirectory(core/tests)
 endif()
 
-install(TARGETS spiro-core
+install(TARGETS spiro-core glm-header-only
     EXPORT spirographicals-targets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
