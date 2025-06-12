@@ -27,6 +27,7 @@ endif()
 target_include_directories(spiro-core
     PRIVATE 
         ${glm_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/third_party/stb
 )
 
 FetchContent_MakeAvailable(glfw glad)
