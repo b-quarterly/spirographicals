@@ -19,6 +19,7 @@ def main():
     project_root = Path(__file__).parent.parent.resolve()
     cpp_build_dir = project_root / "build"
     rust_workspace_dir = project_root / "logic"
+    python_test_dir = project_root / "tests" / "python_tests"
 
     if cpp_build_dir.exists():
         ctest_cmd = ["ctest", "--output-on-failure", "--test-dir", str(cpp_build_dir)]
@@ -35,7 +36,8 @@ def main():
     maturin_cmd = ["maturin", "develop"]
     run_command(maturin_cmd, project_root, "Maturin develop (for testing) failed.")
 
-    pytest_cmd = ["pytest", "-v"]
+    # Explicitly point pytest to the directory containing the Python tests.
+    pytest_cmd = ["pytest", "-v", str(python_test_dir)]
     run_command(pytest_cmd, project_root, "Pytest execution failed.")
 
     print("\n[OK] All test suites passed successfully.")
