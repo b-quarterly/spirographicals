@@ -34,22 +34,27 @@ fn render_figure(py: Python<'_>, figure: data::Figure) -> PyResult<()> {
 
             for axes_data in &figure.axes {
                 for artist_obj in &axes_data.artists {
-                    // Extract the artist enum from the generic PyObject
-                    if let Ok(line) = artist_obj.extract::<data::LineArtist>(py) {
-                        draw_line_artist(canvas, &line);
-                    } else if let Ok(text) = artist_obj.extract::<data::TextArtist>(py) {
-                        draw_text_artist(canvas, &text);
+                    // Extract into the Artist enum and then match its variant.
+                    // This is the idiomatic way and fixes the dead_code warnings.
+                    match artist_obj.extract::<data::Artist>(py) {
+                        Ok(data::Artist::Line(line)) => {
+                            draw_line_artist(canvas, &line);
+                        }
+                        Ok(data::Artist::Text(text)) => {
+                            draw_text_artist(canvas, &text);
+                        }
+                        Err(_) => {
+                            // Could log a warning here for unknown artist types
+                        }
                     }
                 }
             }
-
             ffi::sp_end_frame(canvas);
         }
 
         ffi::sp_destroy_canvas(canvas);
         ffi::sp_terminate();
     }
-
     Ok(())
 }
 
