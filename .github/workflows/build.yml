@@ -34,13 +34,14 @@ jobs:
       if: runner.os == 'macOS'
       run: brew install cmake
     
-    - name: Create virtualenv and install all dependencies
+    - name: Create virtualenv and install dependencies
       run: |
         python -m venv .venv
         source .venv/bin/activate
         python -m pip install --upgrade pip
+        # Install build tools and test dependencies explicitly
         pip install maturin
-        pip install .[dev]
+        pip install pytest pytest-cov ruff mypy pre-commit numpy
       shell: bash
 
     - name: Build the entire project
