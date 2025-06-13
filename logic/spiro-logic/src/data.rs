@@ -1,7 +1,3 @@
-// logic/spiro-logic/src/data.rs
-// Author: Aitzaz Imtiaz
-// Date: June 13, 2025
-
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 
@@ -207,14 +203,14 @@ impl TextArtist {
     }
 }
 
-#[derive(Debug, Clone, FromPyObject)]
+#[derive(Debug, FromPyObject)]
 pub enum Artist {
     Line(LineArtist),
     Text(TextArtist),
 }
 
 #[pyclass]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PlotAxes {
     #[pyo3(get, set)]
     pub artists: Vec<PyObject>,
@@ -255,7 +251,7 @@ impl PlotAxes {
 }
 
 #[pyclass]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Figure {
     #[pyo3(get, set)]
     pub axes: Vec<PlotAxes>,
