@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HorizontalAlign {
     Left,
@@ -9,7 +9,7 @@ pub enum HorizontalAlign {
     Right,
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VerticalAlign {
     Top,
@@ -17,7 +17,7 @@ pub enum VerticalAlign {
     Bottom,
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LineStyle {
     Solid,
@@ -26,7 +26,7 @@ pub enum LineStyle {
     DashDot,
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MarkerStyle {
     Circle,
@@ -81,21 +81,11 @@ impl Color {
     fn from_hex(hex_str: &str) -> PyResult<Self> {
         let hex = hex_str.trim_start_matches('#');
         let (r, g, b, a) = match hex.len() {
-            6 => (
-                u8::from_str_radix(&hex[0..2], 16)?,
-                u8::from_str_radix(&hex[2..4], 16)?,
-                u8::from_str_radix(&hex[4..6], 16)?,
-                255,
-            ),
-            8 => (
-                u8::from_str_radix(&hex[0..2], 16)?,
-                u8::from_str_radix(&hex[2..4], 16)?,
-                u8::from_str_radix(&hex[4..6], 16)?,
-                u8::from_str_radix(&hex[6..8], 16)?,
-            ),
+            6 => (u8::from_str_radix(&hex[0..2],16)?, u8::from_str_radix(&hex[2..4],16)?, u8::from_str_radix(&hex[4..6],16)?, 255),
+            8 => (u8::from_str_radix(&hex[0..2],16)?, u8::from_str_radix(&hex[2..4],16)?, u8::from_str_radix(&hex[4..6],16)?, u8::from_str_radix(&hex[6..8],16)?),
             _ => return Err(PyValueError::new_err("Hex string must be 6 or 8 characters long")),
         };
-        Ok(Color { r: r as f32 / 255.0, g: g as f32 / 255.0, b: b as f32 / 255.0, a: a as f32 / 255.0 })
+        Ok(Color { r: r as f32/255.0, g: g as f32/255.0, b: b as f32/255.0, a: a as f32/255.0 })
     }
 
     fn __repr__(&self) -> String {
@@ -117,9 +107,7 @@ pub struct TextConfig {
 #[pymethods]
 impl TextConfig {
     #[new]
-    fn new(text: String, color: Color, size: f32) -> Self {
-        TextConfig { text, color, size }
-    }
+    fn new(text: String, color: Color, size: f32) -> Self { TextConfig { text, color, size } }
 }
 
 #[pyclass]
@@ -136,9 +124,7 @@ pub struct GridConfig {
 #[pymethods]
 impl GridConfig {
     #[new]
-    fn new(visible: bool, color: Color, style: LineStyle) -> Self {
-        GridConfig { visible, color, style }
-    }
+    fn new(visible: bool, color: Color, style: LineStyle) -> Self { GridConfig { visible, color, style } }
 }
 
 #[pyclass]
@@ -228,33 +214,25 @@ pub struct PlotAxes {
 impl PlotAxes {
     #[new]
     fn new() -> Self {
-        let default_text_config = TextConfig { text: "".to_string(), color: Color {r:1.0, g:1.0, b:1.0, a:1.0}, size: 12.0 };
-        let default_axis_config = AxisConfig { label: None, limits: None, visible: true };
-        let default_grid_config = GridConfig { visible: false, color: Color {r:0.5, g:0.5, b:0.5, a:0.5}, style: LineStyle::Dashed };
+        let default_axis = AxisConfig { label: None, limits: None, visible: true };
         PlotAxes {
             artists: Vec::new(),
-            title: Some(default_text_config),
-            x_axis: default_axis_config.clone(),
-            y_axis: default_axis_config,
-            grid: default_grid_config,
+            title: None,
+            x_axis: default_axis.clone(),
+            y_axis: default_axis,
+            grid: GridConfig { visible: false, color: Color{r:0.5,g:0.5,b:0.5,a:0.5}, style: LineStyle::Dashed },
         }
     }
-    pub fn add_line(&mut self, py: Python<'_>, line: LineArtist) {
-        self.artists.push(line.into_py(py));
-    }
-    pub fn add_text(&mut self, py: Python<'_>, text: TextArtist) {
-        self.artists.push(text.into_py(py));
-    }
-    fn __repr__(&self) -> String {
-        format!("<PlotAxes with {} artists>", self.artists.len())
-    }
+    pub fn add_line(&mut self, py: Python<'_>, line: LineArtist) { self.artists.push(line.into_py(py)); }
+    pub fn add_text(&mut self, py: Python<'_>, text: TextArtist) { self.artists.push(text.into_py(py)); }
+    fn __repr__(&self) -> String { format!("<PlotAxes with {} artists>", self.artists.len()) }
 }
 
 #[pyclass]
 #[derive(Debug)]
 pub struct Figure {
     #[pyo3(get, set)]
-    pub axes: Vec<PlotAxes>,
+    pub axes: Vec<PyObject>,
     #[pyo3(get, set)]
     pub face_color: Color,
     #[pyo3(get, set)]
@@ -266,12 +244,11 @@ impl Figure {
     #[new]
     fn new() -> Self {
         Figure {
-            axes: vec![PlotAxes::new()],
+            axes: Vec::new(),
             face_color: Color {r:0.1, g:0.1, b:0.1, a:1.0},
             size_pixels: (800, 800),
         }
     }
-    fn __repr__(&self) -> String {
-        format!("<Figure with {} axes>", self.axes.len())
-    }
+    pub fn add_axes(&mut self, py: Python<'_>, axes: PlotAxes) { self.axes.push(axes.into_py(py)); }
+    fn __repr__(&self) -> String { format!("<Figure with {} axes>", self.axes.len()) }
 }
