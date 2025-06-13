@@ -26,6 +26,28 @@ jobs:
     - name: Set up Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
+    - name: Cache Rust dependencies (Cargo)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          logic/target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Cache Homebrew packages (macOS)
+      if: runner.os == 'macOS'
+      uses: actions/cache@v4
+      with:
+        path: /opt/homebrew/
+        key: ${{ runner.os }}-brew-${{ hashFiles('**/Brewfile') }} # Using a non-existent file hash for simplicity
+        restore-keys: |
+          ${{ runner.os }}-brew-
+
     - name: Install C++ dependencies (Linux)
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get install -y build-essential cmake libglfw3-dev libgtk-3-dev
@@ -33,13 +55,12 @@ jobs:
     - name: Install C++ dependencies (macOS)
       if: runner.os == 'macOS'
       run: brew install cmake
-    
+
     - name: Create virtualenv and install dependencies
       run: |
         python -m venv .venv
         source .venv/bin/activate
         python -m pip install --upgrade pip
-        # Install build tools and test dependencies explicitly
         pip install maturin
         pip install pytest pytest-cov ruff mypy pre-commit numpy
       shell: bash
