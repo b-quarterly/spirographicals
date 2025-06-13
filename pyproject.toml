@@ -50,6 +50,7 @@ bindings = "pyo3"
 
 [tool.pytest.ini_options]
 addopts = "-v --cov=spirographicals --cov-report=term-missing"
+pythonpath = ["api/src"]
 
 [tool.ruff]
 line-length = 99
