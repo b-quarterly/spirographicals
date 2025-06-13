@@ -49,9 +49,7 @@ python-source = "api/src"
 bindings = "pyo3"
 
 [tool.pytest.ini_options]
-testpaths = ["tests/python_tests"]
 addopts = "-v --cov=spirographicals --cov-report=term-missing"
-python_files = "test_*.py"
 
 [tool.ruff]
 line-length = 99
