@@ -1,5 +1,11 @@
 #include <gtest/gtest.h>
 #include <spirographicals/spirographicals.h>
+#include <cstdlib>
+
+// Helper function to check if we are in a CI environment
+bool IsInCI() {
+    return std::getenv("CI") != nullptr;
+}
 
 TEST(SpirocoreAPITest, InitializationAndTermination) {
     ASSERT_NO_THROW(sp_initialize());
@@ -7,6 +13,10 @@ TEST(SpirocoreAPITest, InitializationAndTermination) {
 }
 
 TEST(SpirocoreAPITest, CanvasLifecycle) {
+    if (IsInCI()) {
+        GTEST_SKIP() << "Skipping windowed test in headless CI environment.";
+    }
+    
     sp_initialize();
     sp_window_config_t config = {100, 100, "Test", false, false};
     sp_canvas_t* canvas = sp_create_canvas(&config);
@@ -26,9 +36,14 @@ TEST(SpirocoreAPITest, NullCanvasIsHandledGracefully) {
 }
 
 TEST(SpirocoreAPITest, PenLifecycle) {
+    if (IsInCI()) {
+        GTEST_SKIP() << "Skipping windowed test in headless CI environment.";
+    }
+
     sp_initialize();
     sp_window_config_t config = {100, 100, "Test", false, false};
     sp_canvas_t* canvas = sp_create_canvas(&config);
+    ASSERT_NE(canvas, nullptr);
     
     sp_pen_config_t pen_config = {2.0f, SP_LINE_CAP_ROUND, SP_LINE_JOIN_ROUND, 10.0f};
     sp_pen_t* pen = sp_create_pen(canvas, &pen_config);
@@ -41,9 +56,14 @@ TEST(SpirocoreAPITest, PenLifecycle) {
 }
 
 TEST(SpirocoreAPITest, PathLifecycle) {
+    if (IsInCI()) {
+        GTEST_SKIP() << "Skipping windowed test in headless CI environment.";
+    }
+
     sp_initialize();
     sp_window_config_t config = {100, 100, "Test", false, false};
     sp_canvas_t* canvas = sp_create_canvas(&config);
+    ASSERT_NE(canvas, nullptr);
 
     sp_path_t* path = sp_create_path(canvas);
     ASSERT_NE(path, nullptr);
