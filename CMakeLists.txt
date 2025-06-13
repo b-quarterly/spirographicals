@@ -16,6 +16,9 @@ option(SPIRO_BUILD_TESTS "Build the project tests" ON)
 
 include(FetchContent)
 
+# Add this line to disable GLFW's Wayland support before it's configured
+set(GLFW_BUILD_WAYLAND OFF)
+
 FetchContent_Declare(
     glfw
     URL https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.zip
