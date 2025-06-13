@@ -12,7 +12,7 @@ fn to_c_color(color: &data::Color) -> ffi::sp_color_rgba_t {
 }
 
 #[pyfunction]
-fn render_figure(py: Python<'_>, figure: data::Figure) -> PyResult<()> {
+fn render_figure(py: Python<'_>, figure: &data::Figure) -> PyResult<()> {
     let window_config = ffi::sp_window_config_t {
         width: figure.size_pixels.0 as i32,
         height: figure.size_pixels.1 as i32,
@@ -32,20 +32,11 @@ fn render_figure(py: Python<'_>, figure: data::Figure) -> PyResult<()> {
             ffi::sp_begin_frame(canvas);
             ffi::sp_clear(canvas, to_c_color(&figure.face_color));
 
-            for axes_data in &figure.axes {
+            for axes_obj in &figure.axes {
+                let axes_data = axes_obj.downcast_borrow::<data::PlotAxes>(py)?;
                 for artist_obj in &axes_data.artists {
-                    // Extract into the Artist enum and then match its variant.
-                    // This is the idiomatic way and fixes the dead_code warnings.
-                    match artist_obj.extract::<data::Artist>(py) {
-                        Ok(data::Artist::Line(line)) => {
-                            draw_line_artist(canvas, &line);
-                        }
-                        Ok(data::Artist::Text(text)) => {
-                            draw_text_artist(canvas, &text);
-                        }
-                        Err(_) => {
-                            // Could log a warning here for unknown artist types
-                        }
+                    if let Ok(line) = artist_obj.extract::<data::LineArtist>(py) {
+                        draw_line_artist(canvas, &line);
                     }
                 }
             }
@@ -83,20 +74,9 @@ unsafe fn draw_line_artist(canvas: *mut ffi::sp_canvas_t, line: &data::LineArtis
     ffi::sp_destroy_path(path);
 }
 
-unsafe fn draw_text_artist(canvas: *mut ffi::sp_canvas_t, text: &data::TextArtist) {
-    ffi::sp_set_color(canvas, to_c_color(&text.config.color));
-    ffi::sp_draw_text(
-        canvas,
-        text.config.text.as_ptr() as *const i8,
-        text.position.x,
-        text.position.y,
-    );
-}
-
 #[pymodule]
 fn spirographicals(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(render_figure, m)?)?;
-    
     m.add_class::<data::HorizontalAlign>()?;
     m.add_class::<data::VerticalAlign>()?;
     m.add_class::<data::LineStyle>()?;
@@ -110,6 +90,5 @@ fn spirographicals(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<data::TextArtist>()?;
     m.add_class::<data::PlotAxes>()?;
     m.add_class::<data::Figure>()?;
-
     Ok(())
 }
