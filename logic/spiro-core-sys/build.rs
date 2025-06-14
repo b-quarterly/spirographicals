@@ -1,4 +1,5 @@
 // logic/spiro-core-sys/build.rs
+
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
@@ -30,6 +31,7 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", lib_dir.display());
     println!("cargo:rustc-link-lib=static=spiro-core");
+    println!("cargo:rustc-link-lib=static=glfw");
 
     if cfg!(target_os = "linux") {
         println!("cargo:rustc-link-lib=dylib=stdc++");
