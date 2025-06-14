@@ -109,10 +109,7 @@ pub struct LineArtist {
 
 #[pymethods]
 impl LineArtist {
-    #[new]
-    fn new(points: Vec<Vec2>, color: Color, linewidth: f32, style: LineStyle) -> Self {
-        LineArtist { points, color, linewidth, style }
-    }
+    #[new] fn new(points: Vec<Vec2>, color: Color, linewidth: f32, style: LineStyle) -> Self { LineArtist { points, color, linewidth, style } }
 }
 
 #[pyclass]
@@ -126,10 +123,7 @@ pub struct TextArtist {
 
 #[pymethods]
 impl TextArtist {
-    #[new]
-    fn new(config: TextConfig, position: Vec2, h_align: HorizontalAlign, v_align: VerticalAlign) -> Self {
-        TextArtist { config, position, h_align, v_align }
-    }
+    #[new] fn new(config: TextConfig, position: Vec2, h_align: HorizontalAlign, v_align: VerticalAlign) -> Self { TextArtist { config, position, h_align, v_align } }
 }
 
 #[derive(Debug, FromPyObject)]
@@ -154,13 +148,12 @@ impl PlotAxes {
         let default_axis = AxisConfig { label: None, limits: None, visible: true };
         PlotAxes { artists: Vec::new(), title: None, x_axis: default_axis.clone(), y_axis: default_axis, grid: GridConfig { visible: false, color: Color{r:0.5,g:0.5,b:0.5,a:0.5}, style: LineStyle::Dashed }}
     }
-    pub fn add_line(&mut self, line: &LineArtist) { self.artists.push(line.clone().into_py(line.py())); }
-    pub fn add_text(&mut self, text: &TextArtist) { self.artists.push(text.clone().into_py(text.py())); }
+    pub fn add_artist(&mut self, artist: PyObject) { self.artists.push(artist); }
     fn __repr__(&self) -> String { format!("<PlotAxes with {} artists>", self.artists.len()) }
 }
 
 #[pyclass]
-#[derive(Debug)]
+#[derive(Debug, FromPyObject)]
 pub struct Figure {
     #[pyo3(get, set)] pub axes: Vec<PyObject>,
     #[pyo3(get, set)] pub face_color: Color,
@@ -170,6 +163,6 @@ pub struct Figure {
 #[pymethods]
 impl Figure {
     #[new] fn new() -> Self { Figure { axes: Vec::new(), face_color: Color {r:0.1,g:0.1,b:0.1,a:1.0}, size_pixels: (800, 800) } }
-    pub fn add_axes(&mut self, axes: &PlotAxes) { self.axes.push(axes.to_object(axes.py())); }
+    pub fn add_axes(&mut self, axes: PyObject) { self.axes.push(axes); }
     fn __repr__(&self) -> String { format!("<Figure with {} axes>", self.axes.len()) }
 }
