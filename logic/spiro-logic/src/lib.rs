@@ -33,7 +33,7 @@ fn render_figure(py: Python<'_>, figure: &data::Figure) -> PyResult<()> {
             ffi::sp_clear(canvas, to_c_color(&figure.face_color));
 
             for axes_obj in &figure.axes {
-                let axes_data = axes_obj.downcast_borrow::<data::PlotAxes>(py)?;
+                let axes_data = axes_obj.downcast_bound::<data::PlotAxes>(py)?;
                 for artist_obj in &axes_data.artists {
                     if let Ok(line) = artist_obj.extract::<data::LineArtist>(py) {
                         draw_line_artist(canvas, &line);
@@ -53,6 +53,7 @@ unsafe fn draw_line_artist(canvas: *mut ffi::sp_canvas_t, line: &data::LineArtis
     if line.points.len() < 2 { return; }
 
     let path = ffi::sp_create_path(canvas);
+    if path.is_null() { return; }
     ffi::sp_path_move_to(path, line.points[0].x, line.points[0].y);
     for point in line.points.iter().skip(1) {
         ffi::sp_path_line_to(path, point.x, point.y);
@@ -65,6 +66,7 @@ unsafe fn draw_line_artist(canvas: *mut ffi::sp_canvas_t, line: &data::LineArtis
         miter_limit: 10.0,
     };
     let pen = ffi::sp_create_pen(canvas, &pen_config);
+    if pen.is_null() { ffi::sp_destroy_path(path); return; }
 
     ffi::sp_set_pen(canvas, pen);
     ffi::sp_set_color(canvas, to_c_color(&line.color));
