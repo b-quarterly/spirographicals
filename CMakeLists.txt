@@ -9,7 +9,6 @@ project(spirographicals
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 cmake_policy(SET CMP0135 NEW)
@@ -24,6 +23,7 @@ FetchContent_Declare(
     glfw
     URL https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.zip
 )
+FetchContent_MakeAvailable(glfw)
 
 add_subdirectory(core)
 
@@ -37,7 +37,7 @@ if(SPIRO_BUILD_TESTS)
     add_subdirectory(core/tests)
 endif()
 
-install(TARGETS spiro-core
+install(TARGETS spiro-core glfw
     EXPORT spirographicals-targets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
