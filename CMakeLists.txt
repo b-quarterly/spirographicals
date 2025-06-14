@@ -10,13 +10,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 cmake_policy(SET CMP0135 NEW)
 
 option(SPIRO_BUILD_TESTS "Build the project tests" ON)
 
 include(FetchContent)
 
-# Add this line to disable GLFW's Wayland support before it's configured
 set(GLFW_BUILD_WAYLAND OFF)
 
 FetchContent_Declare(
