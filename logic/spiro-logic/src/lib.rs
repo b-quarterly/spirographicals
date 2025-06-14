@@ -34,7 +34,7 @@ fn render_figure(py: Python<'_>, figure: &data::Figure) -> PyResult<()> {
 
             for axes_obj in &figure.axes {
                 let axes_data = axes_obj.downcast_bound::<data::PlotAxes>(py)?;
-                for artist_obj in &axes_data.artists {
+                for artist_obj in &axes_data.borrow().artists {
                     if let Ok(line) = artist_obj.extract::<data::LineArtist>(py) {
                         draw_line_artist(canvas, &line);
                     }
