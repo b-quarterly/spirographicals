@@ -3,11 +3,13 @@
 from . import spirographicals as _internal
 
 class Figure:
-    """The top-level container for all the plot elements."""
+    """
+    The top-level container for all the plot elements.
+    """
     def __init__(self, figsize=(10.0, 10.0), dpi=100.0, facecolor='#121212'):
         self.figsize = figsize
         self.dpi = dpi
-        self.face_color = _internal.Color.from_hex(facecolor)
+        self.face_color_hex = facecolor
         self.axes = []
 
     def add_subplot(self):
@@ -26,16 +28,20 @@ class Figure:
         if not _internal:
             raise RuntimeError("Spirographicals core extension not loaded.")
 
-        # 1. Create the top-level Rust Figure object
+        # 1. Create the top-level Rust Figure object from our Python data.
         rust_figure = _internal.Figure()
         rust_figure.size_pixels = (int(self.figsize[0] * self.dpi), int(self.figsize[1] * self.dpi))
-        rust_figure.face_color = self.face_color
+        rust_figure.face_color = _internal.Color.from_hex(self.face_color_hex)
         
-        # 2. Convert each Python Axes object into a Rust PlotAxes object
+        # 2. Convert each Python Axes object into a Rust PlotAxes object.
         for ax in self.axes:
             rust_axes = _internal.PlotAxes()
             
-            # 3. Convert each Python plot command into a Rust Artist object
+            if ax._title:
+                title_color = _internal.Color.from_hex(ax._title.get("color", "#FFFFFF"))
+                rust_axes.title = _internal.TextConfig(ax._title["text"], title_color, 16.0)
+
+            # 3. Convert each Python plot command into a Rust Artist object.
             for command in ax._plot_commands:
                 if command["type"] == "line":
                     points = [_internal.Vec2(p[0], p[1]) for p in zip(command["x"], command["y"])]
@@ -45,13 +51,14 @@ class Figure:
                         points=points,
                         color=color,
                         linewidth=command["linewidth"],
-                        style=_internal.LineStyle.Solid # Placeholder
+                        style=_internal.LineStyle.Solid
                     )
                     rust_axes.add_artist(line_artist)
             
             rust_figure.add_axes(rust_axes)
 
-        # 4. Call the main render function in Rust
+        # 4. Call the main render function in the Rust backend.
+        # This will open the window and start the render loop.
         _internal.render_figure(rust_figure)
 
     def savefig(self, path, dpi=None):
@@ -65,7 +72,7 @@ class Axes:
     def __init__(self, figure):
         self._figure = figure
         self._plot_commands = []
-        self._title = ""
+        self._title = {}
 
     def plot(self, x, y, color='#00FFFF', linewidth=1.5, label=None):
         """Plot y versus x as lines."""
