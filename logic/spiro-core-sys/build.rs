@@ -31,7 +31,7 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", lib_dir.display());
     println!("cargo:rustc-link-lib=static=spiro-core");
-    println!("cargo:rustc-link-lib=static=glfw");
+    println!("cargo:rustc-link-lib=static=glfw3"); // Corrected name from 'glfw' to 'glfw3'
 
     if cfg!(target_os = "linux") {
         println!("cargo:rustc-link-lib=dylib=stdc++");
