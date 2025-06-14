@@ -22,6 +22,7 @@
 #include <stack>
 #include <fstream>
 #include <algorithm>
+#include <cstdlib>
 
 namespace spiro::internal {
 
@@ -119,9 +120,14 @@ public:
     Canvas(const sp_window_config_t& config) {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3); glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        
+        const char* ci_env = std::getenv("CI");
+        if (ci_env && (std::string(ci_env) == "true" || std::string(ci_env) == "1")) {
+            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        }
+
         m_window = glfwCreateWindow(config.width, config.height, config.title, nullptr, nullptr);
-        if (!m_window) { glfwTerminate(); throw std::runtime_error("glfwCreateWindow failed"); }
+        if (!m_window) { throw std::runtime_error("glfwCreateWindow failed"); }
         glfwMakeContextCurrent(m_window);
         if (config.vsync) glfwSwapInterval(1);
         if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) throw std::runtime_error("gladLoadGLLoader failed");
@@ -243,7 +249,7 @@ void sp_draw_image(sp_canvas_t* c, sp_image_t* i, float x, float y) {
 }
 void sp_draw_image_rect(sp_canvas_t* c, sp_image_t* i, sp_rect_t src, sp_rect_t dest) {
     if (!c||!i) return; auto img=as_image(i); float tid=as_canvas(c)->m_renderer->getTextureSlot(img->textureId);
-    glm::vec4 tc={src.x/img->width,src.y/img->height,(src.x+src.w)/img->width,(src.y+src.h)/img->height};
+    glm::vec4 tc={src.x/(float)img->width,src.y/(float)img->height,(src.x+src.w)/(float)img->width,(src.y+src.h)/(float)img->height};
     as_canvas(c)->m_renderer->addQuad({dest.x,dest.y,0,1},{dest.x+dest.w,dest.y,0,1},{dest.x+dest.w,dest.y+dest.h,0,1},{dest.x,dest.y+dest.h,0,1},{1,1,1,1},tid,tc);
 }
 
