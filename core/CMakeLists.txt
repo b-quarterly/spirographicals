@@ -19,11 +19,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/g-truc/glm.git
     GIT_TAG        1.0.1
 )
-
-FetchContent_GetProperties(glm)
-if(NOT glm_POPULATED)
-    FetchContent_Populate(glm)
-endif()
+FetchContent_MakeAvailable(glm)
 
 target_include_directories(spiro-core
     PRIVATE
@@ -31,8 +27,6 @@ target_include_directories(spiro-core
         ${CMAKE_SOURCE_DIR}/third_party/stb
         ${CMAKE_SOURCE_DIR}/third_party/glad/include
 )
-
-FetchContent_MakeAvailable(glfw)
 
 target_link_libraries(spiro-core
     PRIVATE
