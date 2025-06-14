@@ -1,5 +1,4 @@
 // logic/spiro-core-sys/build.rs
-
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
@@ -34,7 +33,11 @@ fn main() {
 
     if cfg!(target_os = "linux") {
         println!("cargo:rustc-link-lib=dylib=stdc++");
-        println!("cargo:rustc-link-lib=dylib=glfw");
+        println!("cargo:rustc-link-lib=dylib=X11");
+        println!("cargo:rustc-link-lib=dylib=Xrandr");
+        println!("cargo:rustc-link-lib=dylib=Xinerama");
+        println!("cargo:rustc-link-lib=dylib=Xcursor");
+        println!("cargo:rustc-link-lib=dylib=Xi");
         println!("cargo:rustc-link-lib=dylib=GL");
     } else if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=dylib=c++");
